@@ -1,0 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String   @id @default(cuid())
+  username             String   @unique @db.VarChar(50)
+  email                String   @unique @db.VarChar(255)
+  password             String?  @db.VarChar(255)
+  googleId             String?  @unique @db.VarChar(255)
+  
+  // Profile fields
+  fullName             String?  @db.VarChar(100)
+  bio                  String?  @db.Text
+  avatarUrl            String?  @db.VarChar(500)
+  
+  // Settings fields
+  experienceLevel      String   @default("beginner") @db.VarChar(50) // beginner, intermediate, advanced
+  preferredDifficulty  String   @default("beginner") @db.VarChar(50)
+  preferredKeyboardRow String   @default("all") @db.VarChar(50)
+  soundEnabled         Boolean  @default(true)
+  keyboardLayout       String   @default("qwerty") @db.VarChar(50) // qwerty, dvorak, colemak
+  targetWPM            Int      @default(40)
+  dailyGoalMinutes     Int      @default(15)
+  theme                String   @default("light") @db.VarChar(50) // light, dark, auto
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  typingSessions       TypingSession[]
+  leaderboardEntries   LeaderboardEntry[]
+
+  @@map("users")
+}
+
+model SampleText {
+  id                   String   @id @default(cuid())
+  title                String   @db.VarChar(255)
+  content              String   @db.Text
+  difficulty           String   @db.VarChar(50) // 'beginner', 'intermediate', 'advanced'
+  keyboardRow          String   @db.VarChar(50) // 'home', 'upper', 'lower', 'all'
+  includesNumbers      Boolean  @default(false)
+  includesSpecialChars Boolean  @default(false)
+  characterCount       Int
+  wordCount            Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  typingSessions       TypingSession[]
+
+  @@index([difficulty, keyboardRow])
+  @@map("sample_texts")
+}
+
+model TypingSession {
+  id                   String   @id @default(cuid())
+  text                 String   @db.Text
+  userInput            String   @db.Text
+  wpm                  Int
+  accuracy             Float
+  duration             Int      // in seconds
+  totalCharacters      Int
+  correctCharacters    Int
+  incorrectCharacters  Int
+  sessionType          String?  @db.VarChar(50) // 'practice', 'test', 'game'
+  difficulty           String?  @db.VarChar(50) // 'beginner', 'intermediate', 'advanced', 'expert'
+  userId               String?
+  sampleTextId         String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  user                 User?       @relation(fields: [userId], references: [id])
+  sampleText           SampleText? @relation(fields: [sampleTextId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([wpm])
+  @@index([accuracy])
+  @@map("typing_sessions")
+}
+
+model LeaderboardEntry {
+  id                   String   @id @default(cuid())
+  userId               String
+  period               String   @db.VarChar(50) // 'daily', 'weekly', 'monthly', 'all_time'
+  periodDate           DateTime // The specific date/week/month this entry is for
+  
+  // Scores for different categories
+  bestWpm              Int      @default(0)
+  bestAccuracy         Float    @default(0)
+  overallScore         Float    @default(0) // Combined score
+  sessionCount         Int      @default(0)
+  
+  // Cache best session details
+  bestWpmSessionId     String?
+  bestAccuracySessionId String?
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  user                 User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, period, periodDate])
+  @@index([period, periodDate, overallScore])
+  @@index([period, periodDate, bestWpm])
+  @@index([period, periodDate, bestAccuracy])
+  @@index([period, periodDate, sessionCount])
+  @@map("leaderboard_entries")
+}

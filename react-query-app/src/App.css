@@ -1,0 +1,4 @@
+/* Minimal App.css to avoid conflicts with Tailwind */
+.App {
+  /* Remove conflicting styles */
+} 
